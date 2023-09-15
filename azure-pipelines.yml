@@ -1,0 +1,39 @@
+# Maven
+# Build your Java project and run tests with Apache Maven.
+# Add steps that analyze code, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/java
+
+trigger:
+- feature/*
+variables:
+  buildConfiguration: 'Release'
+stages:
+- stage: 'build'
+  displayName: 'Build the application'
+  jobs:
+    - job: 'build'
+      pool:
+        vmImage: ubuntu latest
+      steps:
+      - task: Maven@3
+        inputs:
+          mavenPomFile: 'pom.xml'
+          mavenOptions: '-Xmx3072m'
+          javaHomeOption: 'JDKVersion'
+          jdkVersionOption: '1.11'
+          jdkArchitectureOption: 'x64'
+          publishJUnitResults: true
+          testResultsFiles: '**/surefire-reports/TEST-*.xml'
+          goals: 'package  deploy:deploy-file'      
+          mavenAuthenticateFeed: true
+          options: '-X -P azure_artifacts -Dpackaging="jar" -DrepositoryId="MyProjectReleaseArtifacts" -Durl="https://pkgs.dev.azure.com/kibernum-devops/project-devops/_packaging/MyProjectReleaseArtifacts/maven/v1" -DgroupId="com.kibernumacademy" -DartifactId="devops" -Dversion="0.0.3" -Dfile="$(System.DefaultWorkingDirectory)/target/devops-0.0.3.jar"'
+      - task: CopyFiles@1
+        displayName: 'Copy jar to pipeline artifact'
+        inputs:
+          SourceFolder: '$(System.DefaultWorkingDirectory)/target/'
+          Contents: '*.jar'
+          TargetFolder: '$(build.artifactstagingdirectory)/$(buildConfiguration)'
+          CleanTargetFolder: true
+      - task: PublishBuildArtifacts@1
+        displayName: 'Publish Artifact: released_package'
+        condition: succeeded()
